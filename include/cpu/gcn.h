@@ -3,7 +3,12 @@
 
 #include <vector>
 #include "module.h"
+#include "variable.h"
 #include "optim.h"
+
+typedef std::vector<Module *> ModuleList;
+typedef std::vector<Variable *> VariableList;
+typedef std::pair<SparseIndex*, SparseIndex*> PairSparseIndex;
 
 struct GCNParams 
 {
@@ -24,23 +29,35 @@ struct GCNData
 class GCNLayer 
 {
 public:
-  GCNLayer(SparseIndex *g_index, std::vector<Module *> mods);
+  GCNLayer(PairSparseIndex pair_graph_index, 
+           Variable *input_data, 
+           int hidden_dim,
+           int layer,
+           std::vector<op_type_t> ops);
 
   void forward(bool);
   void backward();
 
-  Variable *get_intput() { return input; }
+  Variable *get_input() { return input; }
   Variable *get_output() { return output; }
 
 private:
-  std::vector<Module *> modules;
-  std::vector<Variable *> variables;
+  void build_variables(VariableList *variables, std::vector<op_type_t> ops);
+  void build_modules(SparseIndex *sp, ModuleList *mods, std::vector<op_type_t> ops);
+
+  std::pair<ModuleList, ModuleList> pair_mods;
+  VariableList variables;
   Variable *input;
   Variable *output;
-  SparseIndex *graph;
+  PairSparseIndex pair_graph;
+
+  int layer;
+  int input_dim;
+  int hidden_dim;
+  int num_nodes;
 };
 
-class GCN 
+class GCN
 {
 public:
   GCN(GCNParams params, GCNData *data);

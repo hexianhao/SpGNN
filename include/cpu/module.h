@@ -4,6 +4,13 @@
 #include "variable.h"
 #include "sparse.h"
 
+typedef enum {
+  MATMUL,
+  SPMM,
+  AGG,
+  RELU
+} op_type_t;
+
 class Module 
 {
 public:
@@ -22,6 +29,19 @@ public:
 
 private:
   Variable *a, *b, *c;
+  int m, n, p;
+};
+
+class SparseMatmul: public Module {
+public:
+  SparseMatmul(Variable *a, Variable *b, Variable *c, SparseIndex *sp, int m, int n, int p);
+  ~SparseMatmul() {}
+  void forward(bool);
+  void backward();
+
+private:
+  Variable *a, *b, *c;
+  SparseIndex *sp;
   int m, n, p;
 };
 
