@@ -1,4 +1,4 @@
-#include "cpu/gcn.h"
+#include "cpu/gcn_layer.h"
 
 GCNLayer::GCNLayer(PairSparseIndex pair_graph_index,
                    Variable *input_data, 
@@ -33,25 +33,23 @@ GCNLayer::GCNLayer(PairSparseIndex pair_graph_index,
 void GCNLayer::build_variables(VariableList *variables, std::vector<op_type_t> ops)
 {
   for (int i = 0; i < ops.size(); i++) {
-  std::vector<int> shape;
+    std::vector<int> shape;
 
-  // initialize weights
-  if (i > 0) {
-    if (i == 1) {
-      shape = {input_dim, hidden_dim};
-    } else {
-      shape = {hidden_dim, hidden_dim};
+    // initialize weights
+    if (i > 0) {
+      if (i == 1) {
+        shape = {input_dim, hidden_dim};
+      } else {
+        shape = {hidden_dim, hidden_dim};
+      }
+
+      variables->emplace_back(shape, false);
     }
 
+    // output of each op
+    shape = {num_nodes, hidden_dim};
     variables->emplace_back(shape, false);
   }
-
-  // output of each op
-  shape = {num_nodes, hidden_dim};
-  variables->emplace_back(shape, false);
-
-
-}
 }
 
 void GCNLayer::build_modules(SparseIndex *sp, ModuleList *mods, std::vector<op_type_t> ops)
@@ -81,23 +79,11 @@ void GCNLayer::build_modules(SparseIndex *sp, ModuleList *mods, std::vector<op_t
       cur_var += 2;
       break;
     case AGG:
-      
+      mods->emplace_back(GraphSum(input, variables[cur_var], sp, hidden_dim));
+      cur_var += 1;
       break;
     default:
       break;
     }
-  }
-}
-
-GCN::GCN(GCNParams params, GCNData *data)
-  : params(params), input(data)
-{
-  int num_layers = params.num_layers;
-  layers.reserve(num_layers);
-
-  // TODO: build gcn structure according to config file.
-  // we pre-define gcn layers
-  for (int i = 0; i < num_layers; i++) {
-    
   }
 }

@@ -32,7 +32,8 @@ private:
   int m, n, p;
 };
 
-class SparseMatmul: public Module {
+class SparseMatmul: public Module 
+{
 public:
   SparseMatmul(Variable *a, Variable *b, Variable *c, SparseIndex *sp, int m, int n, int p);
   ~SparseMatmul() {}
@@ -43,6 +44,33 @@ private:
   Variable *a, *b, *c;
   SparseIndex *sp;
   int m, n, p;
+};
+
+class GraphSum: public Module 
+{
+public:
+  GraphSum(Variable *in, Variable *out, SparseIndex *graph, int dim);
+  ~GraphSum() {}
+  void forward(bool);
+  void backward();
+
+private:
+  Variable *in, *out;
+  SparseIndex *graph;
+  int dim;
+};
+
+class ReLU: public Module 
+{
+public:
+  ReLU(Variable *in);
+  ~ReLU();
+  void forward(bool);
+  void backward();
+
+private:
+  Variable *in;
+  bool *mask;
 };
 
 #endif
