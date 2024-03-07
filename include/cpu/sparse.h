@@ -11,11 +11,12 @@
  * indices[j] (j in [indptr[i], indptr[i+1])) stores column indices of nonzero
  * elements in the i-th row.
  */
-class SparseIndex {
-public:
+struct SparseIndex 
+{
+  double sparsity_rate;
+  int row, column;
   std::vector<int> indices;
   std::vector<int> indptr;
-  void print();
 };
 
 
