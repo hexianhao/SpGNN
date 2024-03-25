@@ -1,6 +1,8 @@
 #include "spgnn.h"
 #include <string.h>
 #include <set>
+#include <deque>
+#include <math.h>
 
 SpGNN::SpGNN(SpGNNParams params, SpGNNData *data)
   : params_(params), 
@@ -28,9 +30,26 @@ void SpGNN::set_input()
 
 }
 
+void SpGNN::pruning()
+{
+  printf("Not implemented yet\n");
+}
+
 void SpGNN::inference()
 {
-  
+
+}
+
+void SpGNN::auto_tuning()
+{
+  // data layout transform
+  data_layout_transform();
+  // kernel generation
+  kernels_gen(SpGNNLayer::kerns);
+  // each layer's auto tuning
+  for (auto &layer : layers_) {
+    layer.auto_tuning();
+  }
 }
 
 void SpGNN::data_layout_transform()
@@ -38,19 +57,18 @@ void SpGNN::data_layout_transform()
   // reorder graph
   sparse_graph_reorder();
   // reorder weight
-  sparse_weight_reorder();
+  sparse_weight_reorder(10);
 }
 
 void SpGNN::sparse_graph_reorder()
 {
-  SparseIndex &graph = layers_.front().get_graph_index();
-  int col = graph.column;
-  int row = graph.row;
+  int col = params_.num_nodes;
+  int row = params_.num_nodes;
   AdjElem *adj_mat = (AdjElem *)malloc(sizeof(AdjElem) * row * col);
   memset(adj_mat, 0, sizeof(AdjElem) * row * col);
   // fill in adj_mat
   for (int i = 0; i < row; i++) {
-    for (int j = graph.indptr[i]; j < graph.indptr[i + 1]; j++) {
+    for (int j = graph_.indptr[i]; j < graph_.indptr[i + 1]; j++) {
       adj_mat[ROW_MAJOR_OFF(i, j, col)] = AdjValue::CONN;
     }
   }
@@ -142,32 +160,54 @@ void SpGNN::sparse_graph_reorder()
   }
 
   // build new graph index
-  SparseIndex new_graph;
-  new_graph.column = col;
-  new_graph.row = row;
-  new_graph.sparsity_rate = graph.sparsity_rate;
-  int pos = 0;
-  for (int i = 0; i < row; i++) {
-    new_graph.indptr.push_back(new_graph.indices.size());
-    for (int j = 0; j < col; j++) {
-      if (adj_mat[ROW_MAJOR_OFF(i, j, col)] == AdjValue::CONN) {
-        new_graph.indices.push_back(j);
-      }
-    }
-  }
-  new_graph.indptr.push_back(new_graph.indices.size());
+  graph_.indices.clear();
+  graph_.indptr.clear();
 
-  // set graph for all layers
-  for (auto &layer : layers_) {
-    layer.set_graph_index(new_graph);
-  }
+
+  // SparseIndex new_graph;
+  // new_graph.sparsity_rate = graph_->sparsity_rate;
+  // for (int i = 0; i < row; i++) {
+  //   new_graph.indptr.push_back(new_graph.indices.size());
+  //   for (int j = 0; j < col; j++) {
+  //     if (adj_mat[ROW_MAJOR_OFF(i, j, col)] == AdjValue::CONN) {
+  //       new_graph.indices.push_back(j);
+  //     }
+  //   }
+  // }
+  // new_graph.indptr.push_back(new_graph.indices.size());
+
+  
 
   free(adj_mat);
   free(row_nnz);
   free(col_nnz);
 }
 
-void SpGNN::sparse_weight_reorder()
+void SpGNN::sparse_weight_reorder(int wnd_size)
 {
-
-} 
+  int half_wnd_sz = wnd_size >> 1;
+  for (int l = 0; l < layers_.size() - 1; l++) {
+    auto cur_weight = layers_[l].get_weight();
+    auto next_weight = layers_[l + 1].get_weight();
+    // build graph to reorder col of the l-th weight 
+    // and row of the (l+1)-th weight
+    int n_vertex = cur_weight->column_num();
+    float *scores = (float *)malloc(sizeof (float) * n_vertex * n_vertex);
+    memset(scores, 0, sizeof(float) * n_vertex * n_vertex);
+    cur_weight->build_relations(scores, half_wnd_sz, cur_weight->row_num(), false);
+    next_weight->build_relations(scores, half_wnd_sz, next_weight->column_num(), true);
+    // reorder the column of cur_weight and row of next_weight
+    cur_weight->reorder(scores, false);
+    next_weight->reorder(scores, true);
+    // the row of the 1st weight can be reorder
+    if (l == 0) {
+      free(scores);
+      n_vertex = cur_weight->row_num();
+      scores = (float *)malloc(sizeof(float) * n_vertex * n_vertex);
+      memset(scores, 0, sizeof(float) * n_vertex * n_vertex);
+      cur_weight->build_relations(scores, half_wnd_sz, cur_weight->column_num(), true);
+      cur_weight->reorder(scores, true);
+    }
+    free(scores);
+  }
+}

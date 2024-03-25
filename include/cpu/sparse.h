@@ -14,10 +14,11 @@
 struct SparseIndex 
 {
   double sparsity_rate;
-  int row, column;
   std::vector<int> indices;
   std::vector<int> indptr;
 };
+
+bool non_zero(int row, int col, SparseIndex &sp);
 
 
 #endif
